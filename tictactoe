@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<!--JUEGO TIC-TOC-TOE o tres en raya -->
+<!--El código se debería de optimizar. Se debería de evitar utilizar variables globales. 12/Jun/2018-->
+
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Tres en Raya</title>
+<style>
+body{
+	width:960px;
+	margin:0 auto;
+}
+h1{
+	text-align:center;
+}
+#miCanvas{
+	border:solid 2px blue;
+	background:lightblue;	
+}
+</style>
+<script>
+/**************
+VARIABLES
+***************/
+var ctx, canvas;
+var fichas_array = new Array();
+var COLUMNAS = 3;
+var RENGLONES = 3;
+var fichas_X = 0;
+var fichas_O = 0;
+var tiradas = 0;
+var gameOver = false;
+var largo = 120;
+var colorGato = "black";
+var colorCanvas = "green";
+/**********************/
+function Ficha(x,y,w,h,i,ren,col){
+	this.x = x;
+	this.y = y;
+	this.w = w;
+	this.h = h;
+	this.i = i;
+	this.ren = ren;
+	this.col = col;
+	this.peso = 0;
+	this.valor = "";
+	this.pinta = pintaFicha;	
+}
+function pintaFicha(valor){
+	this.valor = valor;
+	ctx.font = "bold 100px Arial";
+	ctx.fillStyle = colorGato;
+	ctx.fillText(valor, this.x+30, this.y+100, this.w, this.h);
+}
+/********************
+FUNCIONES
+*********************/
+function gato(){
+	ctx.fillStyle = colorCanvas;	
+	ctx.strokeStyle = colorGato;
+	ctx.lineWidth = 20;
+	ctx.beginPath();
+	ctx.moveTo(410,20);
+	ctx.lineTo(410,420);
+	ctx.stroke();
+	//
+	ctx.beginPath();
+	ctx.moveTo(550,20);
+	ctx.lineTo(550,420);
+	ctx.stroke();
+	//
+	ctx.beginPath();
+	ctx.moveTo(280,150);
+	ctx.lineTo(680,150);
+	ctx.stroke();
+	//
+	ctx.beginPath();
+	ctx.moveTo(280,290);
+	ctx.lineTo(680,290);
+	ctx.stroke();
+	//
+	fichas_array.push(new Ficha(280,20,largo, largo, 0, 0, 0));
+	fichas_array.push(new Ficha(420,20,largo, largo, 1, 0, 1));
+	fichas_array.push(new Ficha(560,20,largo, largo, 2, 0, 2));
+	//
+	fichas_array.push(new Ficha(280,160,largo, largo, 3, 1, 0));
+	fichas_array.push(new Ficha(420,160,largo, largo, 4, 1, 1));
+	fichas_array.push(new Ficha(560,160,largo, largo, 5, 1, 2));
+	//
+	fichas_array.push(new Ficha(280,300,largo, largo, 6, 2, 0));
+	fichas_array.push(new Ficha(420,300,largo, largo, 7, 2, 1));
+	fichas_array.push(new Ficha(560,300,largo, largo, 8, 2, 2));
+}
+/********************
+Recibe una cadena y 
+la desliega
+*********************/
+function mensaje(cadena){
+	var lon = (canvas.width-(20*cadena.length))/2;
+	ctx.strokeStyle = "black";
+	ctx.clearRect(0,420,canvas.width,100);
+	ctx.font = "bold 40px Courier";
+	ctx.fillText(cadena,lon,470);	
+}
+/************************
+Ajustamos las coordenadas
+*************************/
+function ajustar(xx, yy){
+	var posCanvas = canvas.getBoundingClientRect();
+	var x = xx - posCanvas.left;
+	var y = yy - posCanvas.top;
+	return {x:x, y:y}
+}
+/***************************
+verifica el peso de una ficha
+*****************************/
+function pesoFicha(i, fichas_O, fichas_X){
+	ficha = fichas_array[i];
+	if(ficha.valor==""){
+		if(fichas_O == 2 && fichas_X == 0){
+			ficha.peso += 10;
+		} else if(fichas_O == 0 && fichas_X == 2){
+			ficha.peso += 6;
+		} else if(fichas_O == 1 && fichas_X == 0){
+			ficha.peso += 3;
+		} else {
+			ficha.peso += 1;
+		}
+	} else {
+		ficha.peso = 0;
+	}
+}
+function verificaFin(O,X){
+	var fin = false;
+	if(X==3){
+		fin = true;
+		mensaje("Felicidades, ganaste");
+	}
+	if(O==3){
+		fin=true;
+		mensaje("Lo siento, perdiste");
+	}
+	return fin
+}
+function buscaFicha(ren, col){
+	for(var i=0; i<fichas_array.length; i++){
+		ficha = fichas_array[i];
+		if(ficha.ren == ren && ficha.col == col){
+			break
+		}
+	}
+	return ficha;
+}
+/********************
+Selecciona por el apuntador
+del ratón
+**********************/
+function selecciona(e){
+	//Remover el listener
+	canvas.removeEventListener("click",selecciona,false);
+	//
+	var pos = ajustar(e.clientX, e.clientY);
+	var x = pos.x;
+	var y = pos.y;
+	var ficha;
+	for(var i=0; i<fichas_array.length; i++){
+		ficha = fichas_array[i];
+		if((x>ficha.x)&&(	x < ficha.x + ficha.w)&&(y>ficha.y)&&(y<ficha.y+ficha.h)){
+			if(ficha.valor==""){
+				tiradas++;
+				break;
+			}
+		}
+	}
+	if(i<fichas_array.length){
+		//console.log(i);
+		if(ficha.valor==""){
+			ficha.pinta("X");
+			mensaje("pensando...");	
+			setTimeout(tiraMaquina,1000);
+		}
+	}
+}
+/********************
+Tira máquina
+*********************/
+function verificaRenglones(calculaPeso){
+	if(gameOver==false){
+		for(i=0; i<RENGLONES; i++){
+			fichas_X = 0;
+			fichas_O = 0;
+			for(j=0; j<COLUMNAS; j++){
+				ficha = buscaFicha(i,j);
+				fichas_X += (ficha.valor=="X"?1:0);
+				fichas_O += (ficha.valor=="O"?1:0);	
+			}
+			console.log("REN: "+i+" X: "+fichas_X+", O: "+fichas_O);
+			if(calculaPeso){
+				for(j=0; j<COLUMNAS; j++){
+					ficha = buscaFicha(i,j);
+					pesoFicha(ficha.i, fichas_O, fichas_X);	
+					console.log("Ficha: "+ficha.i+" peso: "+ficha.peso);
+				}
+			}
+			gameOver = verificaFin(fichas_O, fichas_X);
+			if(gameOver) break;
+		}
+	}
+}
+function verificaColumnas(calculaPeso){
+	if(gameOver==false){
+		for(var j=0; j<COLUMNAS; j++){
+			fichas_X = 0;
+			fichas_O = 0;
+			for(var i=0; i<RENGLONES; i++){
+				ficha = buscaFicha(i,j);
+				fichas_X += (ficha.valor=="X"?1:0);
+				fichas_O += (ficha.valor=="O"?1:0);	
+			}
+			console.log("COL: "+j+" X: "+fichas_X+", O: "+fichas_O);
+			if(calculaPeso){
+				for(i=0; i<RENGLONES; i++){
+					ficha = buscaFicha(i,j);
+					pesoFicha(ficha.i, fichas_O, fichas_X);	
+					console.log("Ficha: "+ficha.i+" peso: "+ficha.peso);
+				}
+			}
+			gameOver = verificaFin(fichas_O, fichas_X);
+			if(gameOver) break;
+		}
+	}
+}
+function verificaDiagonal1(calculaPeso){
+	if(gameOver==false){
+		fichas_X = 0;
+		fichas_O = 0;
+		for(var i=0; i<RENGLONES; i++){
+			ficha = buscaFicha(i,i);
+			fichas_X += (ficha.valor=="X"?1:0);
+			fichas_O += (ficha.valor=="O"?1:0);	
+		}
+		console.log("D1: X: "+fichas_X+", O: "+fichas_O);
+		if(calculaPeso){
+			for(i=0; i<RENGLONES; i++){
+				ficha = buscaFicha(i,i);
+				pesoFicha(ficha.i, fichas_O, fichas_X);	
+				console.log("Ficha: "+ficha.i+" peso: "+ficha.peso);
+			}
+		}
+		gameOver = verificaFin(fichas_O, fichas_X);
+	}
+}
+function verificaDiagonal2(calculaPeso){
+	if(gameOver==false){
+		fichas_X = 0, fichas_O = 0;
+		j = 2;
+		for(var i=0; i<RENGLONES; i++){
+			ficha = buscaFicha(i,j);
+			fichas_X += (ficha.valor=="X"?1:0);
+			fichas_O += (ficha.valor=="O"?1:0);	
+			j--;
+		}
+		console.log("D2: X: "+fichas_X+", O: "+fichas_O);
+		if(calculaPeso){
+			j= 2;
+			for(i=0; i<RENGLONES; i++){
+				ficha = buscaFicha(i,j);
+				pesoFicha(ficha.i, fichas_O, fichas_X);	
+				console.log("Ficha: "+ficha.i+" peso: "+ficha.peso);
+				j--;
+			}
+		}
+		gameOver = verificaFin(fichas_O, fichas_X);
+	}
+}
+/********************
+Tira máquina
+*********************/
+function tiraMaquina(){
+	tiradas++;
+	console.log("Tirada numero: "+tiradas);	
+	if(gameOver==false){
+		//Verificar con el peso
+		verificaRenglones(true);
+		verificaColumnas(true);
+		verificaDiagonal1(true);
+		verificaDiagonal2(true);
+		//
+		//Selecciona la mejor jugada
+		//
+		var mejorJugada = 0;
+		for(var i=0; i<fichas_array.length; i++){
+				ficha = fichas_array[i];
+				if(ficha.peso > mejorJugada){
+					mejorJugada = ficha.peso;
+					ii = i;
+				}
+		}
+		//
+		//Realiza la jugada
+		//
+		ficha = fichas_array[ii];
+		ficha.pinta("O");
+		console.log("Mejor jugada :"+ficha.ren+", "+ficha.col+" "+ficha.i);
+		console.log("--------------------------------");
+		//
+		//Verifica la jugada de la maquina
+		//
+		verificaRenglones(false);
+		verificaColumnas(false);
+		verificaDiagonal1(false);
+		verificaDiagonal2(false);
+		//
+		//Verifica fin del juego
+		//
+		if(gameOver==false){
+			if(tiradas<9){
+				canvas.addEventListener("click",selecciona,false);
+				mensaje("Pulse su jugada");	
+			} else {
+				mensaje("¡GATO!");	
+			}
+		}
+	}
+}
+/********************
+INICIO
+*********************/
+window.onload = function(){
+	canvas = document.getElementById("miCanvas");
+	if(canvas && canvas.getContext){
+		ctx = canvas.getContext("2d");
+		if(ctx){
+			mensaje("Pulse su jugada");
+			gato();
+			canvas.addEventListener("click",selecciona,false);
+		} else {
+			alert("Error al crear tu contexto");	
+		}
+	}
+}
+
+function DetectadoAcceso(){
+alert ('Violación de seguridad');
+return false;
+
+}
+
+document.oncontextmenu= new Function("DetectadoAcceso();return false");
+</script>
+</head>
+
+<body>
+<h1>Tres en Raya</h1>
+<canvas id="miCanvas" width="960px" height="500px">
+Tu navegador no soporta CANVAS
+</canvas>
+</body>
+</html>
